@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
 import sys
+import copy
 
 from scipy import interpolate, signal, optimize
 
@@ -679,8 +680,8 @@ class RSS(object):
             plt.show()
             plt.close()
 
-        flux_sky = np.nanmean(rss.intensity*weight_sky[np.newaxis, :], axis=1)
-        flux_object = np.nanmean(rss.intensity*weight_obj[np.newaxis, :], axis=1)
+        flux_sky = np.nanmean(self.intensity*weight_sky[np.newaxis, :], axis=1)
+        flux_object = np.nanmean(self.intensity*weight_obj[np.newaxis, :], axis=1)
         flux_ratio = flux_object / flux_sky
         sorted_by_flux = np.argsort(flux_ratio)
         if plot:
@@ -1152,11 +1153,11 @@ def coord_range(rss_list):
     return RA_min, RA_max, DEC_min, DEC_max
 
 
-def create_cube(rss):
-    rss.find_sky_emission(6635, 6645)
-    rss.find_relative_throughput()
-    cube = Interpolated_cube(rss, .3, 1.5)
-    return(cube)
+#def create_cube(rss):
+#    rss.find_sky_emission(6635, 6645)
+#    rss.find_relative_throughput()
+#    cube = Interpolated_cube(rss, .3, 1.5)
+#    return(cube)
 
 
 if __name__ == "__main__":
@@ -1168,16 +1169,16 @@ if __name__ == "__main__":
 #    Calibration stars
 #   --------------------------------------------------------------------
 
-#    stars_RSS = []
-#    stars_RSS.append(KOALA_RSS('data/NO_THROUGHPUT/16jan20046red.fits'))
-#    stars_RSS.append(KOALA_RSS('data/NO_THROUGHPUT/16jan20052red.fits'))
-#    stars_RSS.append(KOALA_RSS('data/NO_THROUGHPUT/16jan20064red.fits'))
-#    stars_cubes = [create_cube(rss) for rss in stars_RSS]
-#    stars_cubes[0].do_response_curve('data/FLUX_CAL/feg21.dat')
-#    stars_cubes[1].do_response_curve('data/FLUX_CAL/fhilt600.dat')
-#    stars_cubes[2].do_response_curve('data/FLUX_CAL/ffeige56.dat')
-#
-#    plot_response(stars_cubes[0], stars_cubes)
+    stars_RSS = []
+    stars_RSS.append(KOALA_RSS('data/NO_THROUGHPUT/16jan20046red.fits'))
+    stars_RSS.append(KOALA_RSS('data/NO_THROUGHPUT/16jan20052red.fits'))
+    stars_RSS.append(KOALA_RSS('data/NO_THROUGHPUT/16jan20064red.fits'))
+    stars_cubes = [Interpolated_cube(rss, .3, 1.5) for rss in stars_RSS]
+    stars_cubes[0].do_response_curve('data/FLUX_CAL/feg21.dat')
+    stars_cubes[1].do_response_curve('data/FLUX_CAL/fhilt600.dat')
+    stars_cubes[2].do_response_curve('data/FLUX_CAL/ffeige56.dat')
+
+    plot_response(stars_cubes[0], stars_cubes)
 
 
 #   --------------------------------------------------------------------
@@ -1583,13 +1584,19 @@ if __name__ == "__main__":
 #    median_cube = np.nanmedian(combined_data, axis=0)
 #    wl = pointings_cubes[0].RSS.wavelength
 #    SED = np.nanmean(median_cube, axis=(1, 2))
-    plt.figure(figsize=(10, 5))
-    plt.plot(wl, SED, 'k-')
-#    plt.yscale('log')
-    plt.ylim(10, 50)
-    plt.xlim(6250, 6500)
-    plt.show()
-    plt.close()
+#    plt.figure(figsize=(10, 5))
+#    plt.plot(wl, SED, 'k-')
+##    plt.yscale('log')
+#    plt.ylim(-50, 250)
+##    plt.xlim(6250, 6500)
+#    plt.show()
+#    plt.close()
+#
+#    combined_cube = copy.deepcopy(pointings_cubes[0])
+#    combined_cube.data = median_cube
+#    combined_cube.plot_wavelength(6640, save_file="Ha-median.pdf")
+#    combined_cube.data = np.nanmean(combined_data, axis=0)
+#    combined_cube.plot_wavelength(6640, save_file="Ha-mean.pdf")
 
 #   --------------------------------------------------------------------
 

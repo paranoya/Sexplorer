@@ -556,7 +556,8 @@ class RSS(object):
             self.offset_RA_arcsec = offset_RA_arcsec
             self.offset_DEC_arcsec = offset_DEC_arcsec
 
-        self.find_sky_emission()
+        self.sky_emission = np.zeros(self.n_wave)
+#        self.find_sky_emission()
         self.relative_throughput = np.ones(self.n_spectra)
         self.airmass = 0
         self.extinction_correction = np.ones(self.n_wave)
@@ -776,14 +777,16 @@ class RSS(object):
 #        plt.gca().invert_xaxis()
 #        plt.show()
     # -------------------------------------------------------------------------
-    def RSS_map(self, variable, norm=colors.LogNorm(), list_spectra=[]):
+    def RSS_map(self, variable, list_spectra=[],
+                new_figure=True, norm=colors.LogNorm()):
         """
         Plot map showing the offsets, coloured by variable.
         """
         if len(list_spectra) == 0:
             list_spectra = range(self.n_spectra)
 
-        plt.figure(figsize=(10, 10))
+        if(new_figure):
+            plt.figure(figsize=(10, 10))
         plt.scatter(self.offset_RA_arcsec[list_spectra],
                     self.offset_DEC_arcsec[list_spectra],
                     c=variable[list_spectra], cmap=fuego_color_map, norm=norm,
@@ -793,8 +796,9 @@ class RSS(object):
         plt.ylabel("$\Delta$ DEC [arcsec]")
         plt.colorbar()
         plt.gca().invert_xaxis()
-        plt.show()
-        plt.close()
+        if(new_figure):
+            plt.show()
+            plt.close()
 
     # -------------------------------------------------------------------------
     def do_extinction_curve(self, observatory_file='ssoextinct.dat', plot=False):

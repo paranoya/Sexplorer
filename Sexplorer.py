@@ -31,6 +31,7 @@ color_normalisation = {'linear': matplotlib.colors.Normalize,
 
 
 class MainApp(tk.Frame):
+    # -------------------------------------------------------------------------
 
     def __init__(self, parent):
 
@@ -41,147 +42,50 @@ class MainApp(tk.Frame):
         self.parent_window.title('SELGIFS explorer')
         self.parent_window.bind('<Escape>', lambda f: root.destroy())
 
-        self.file_button = tk.Button(self, text='New RSS file',
-                                     command=self.file_clicked)
-        self.file_button.grid(row=0, column=0)
+        # --- buttons
 
-        # --- plotting area
+        self.controls = tk.Frame(self)
+        tk.Button(self.controls,
+                  text='New RSS file',
+                  command=self.open_file).grid(row=0, sticky='ew')
+        tk.Button(self.controls,
+                  text='Sky subtraction',
+                  command=self.sky_subtraction).grid(row=1, sticky='ew')
+        self.controls.grid(row=0, column=0)
 
+        # --- plots
+
+        self.plotting_area = tk.Frame(self)
         self.figure = {}
         self.canvas = {}
-        
-        self.figure['RA - DEC'] = plt.figure(figsize=(10, 8))  # to account for ~25% colorbar
-        self.canvas['RA - DEC'] = \
-            FigureCanvasTkAgg(self.figure['RA - DEC'], master=self)
-        self.canvas['RA - DEC'].get_tk_widget().grid(row=0, column=1, rowspan=8)
-        self.figure['RA - DEC'].canvas.mpl_connect('button_press_event', self.onclick)
-        self.active_fibre = False
 
-        self.figure['Spectra'] = plt.figure(figsize=(20, 8))
-        self.canvas['Spectra'] = \
-            FigureCanvasTkAgg(self.figure['Spectra'], master=self)
-        self.canvas['Spectra'].get_tk_widget().grid(row=0, column=2, rowspan=8)
+        self.add_panel('RA - DEC', (10, 8), 0, 0)
+        self.add_panel('Spectra', (20, 8), 0, 1)
+        self.plotting_area.grid(row=0, column=1)
 
-        # --- control buttons
+        self.active_fibres = []
+        self.canvas['RA - DEC'].mpl_connect('button_press_event', self.pick_fibre)
 
-        tk.Label(self, text="Configure plots:").grid(row=1, column=0)
-        row_controls = 2
-        for plot in self.figure:
-            tk.Button(self, text=plot,  # state=tk.DISABLED,
-                      command=lambda x=plot: self.plot_clicked(x)).grid(
-                      row=row_controls, column=0)
-            row_controls += 1
+        # --- variables and parameters
 
-        self.file_clicked('22may20047red.fits')
+        self.parameters = {}
+        self.active_fibres = []
 
-    def onclick(self, event):
-        try:
-            self.active_fibre = np.argmin(
-                (self.rss.offset_RA_arcsec-event.xdata)**2 +
-                (self.rss.offset_DEC_arcsec-event.ydata)**2)
-            print('Fiber', self.active_fibre,
-                  'ID =', self.rss.ID[self.active_fibre],
-                  'is the closest to', event.xdata, event.ydata)
-        except:
-            self.active_fibre = False
-        self.update_plots()
+#        self.open_file('')
+        self.open_file('22may20047red.fits')
 
-    def update_plots(self):
-        self.update_RA_DEC_plot()
-        self.update_Spectra_plot()
+        self.update_parameters()
 
-    def update_Spectra_plot(self):
-        plot = 'Spectra'
-        l_min = self.plot_range_current[plot]['wavelength'][0]
-        l_max = self.plot_range_current[plot]['wavelength'][1]
-        v_min = self.plot_range_current[plot]['value'][0]
-        v_max = self.plot_range_current[plot]['value'][1]
-        band_min = self.plot_range_current['RA - DEC']['wavelength'][0]
-        band_max = self.plot_range_current['RA - DEC']['wavelength'][1]
+    def add_panel(self, plot_name, size, row, col):
+        fig = plt.figure(num=plot_name, figsize=size, dpi=100)
+        canvas = FigureCanvasTkAgg(fig, master=self.plotting_area)
+        canvas.get_tk_widget().grid(row=row, column=col)
+        self.figure[plot_name] = fig
+        self.canvas[plot_name] = canvas
 
-        fig = self.figure[plot]
-        plt.figure(fig.number)
-        plt.clf()
-        plot_axis = plt.axes((.05, .1, .94, .85))  # left,bottom,width,height
+    # -------------------------------------------------------------------------
 
-        plot_axis.plot(self.rss.wavelength, self.normalised_spectrum, 'b:')
-        plot_axis.axvspan(band_min, band_max, alpha=0.1, color='c')
-#        plot_axis.plot(self.rss.wavelength, self.rss.sky_emission/np.nanmean(self.rss.sky_emission), 'r-')
-
-        if(self.active_fibre is not False):
-            active_spectrum = np.array(self.rss.intensity[self.active_fibre])
-            active_spectrum *= self.rss.n_wave/np.nansum(active_spectrum)
-            plot_axis.plot(self.rss.wavelength, active_spectrum, 'k-')
-
-        plot_axis.set_xlim(l_min, l_max)
-        plot_axis.set_ylim(v_min, v_max)
-        plot_axis.set_xlabel("$\lambda [\AA]$")
-        plot_axis.set_ylabel("NORMALISED intensity")
-
-        self.canvas[plot].draw()
-
-    def update_RA_DEC_plot(self):
-        plot = 'RA - DEC'
-        RA_min = self.plot_range_current[plot]['offset RA'][0]
-        RA_max = self.plot_range_current[plot]['offset RA'][1]
-        DEC_min = self.plot_range_current[plot]['offset DEC'][0]
-        DEC_max = self.plot_range_current[plot]['offset DEC'][1]
-        l_min = self.plot_range_current[plot]['wavelength'][0]
-        l_max = self.plot_range_current[plot]['wavelength'][1]
-        v_min = self.plot_range_current[plot]['value'][0]
-        v_max = self.plot_range_current[plot]['value'][1]
-
-        fig = self.figure[plot]
-        plt.figure(fig.number)
-        plt.clf()
-        plot_axis = plt.axes((.1, .08, .7, .7/.8))  # left, bottom, width, height
-        cbar_axis = plt.axes((.85, .08, .05, .7/.8))  # left, bottom, width, height
-        plot_axis.cla()
-
-        plot_axis.set_aspect('equal')
-        bbox = plot_axis.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-        plot_area_pt2 = bbox.width*bbox.height*fig.dpi**2
-        plot_area_arcsec2 = (RA_max-RA_min)*(DEC_max-DEC_min)
-        arcsec2_to_pt2 = plot_area_pt2/plot_area_arcsec2
-        value = self.rss.flux_between(l_min, l_max)[0]
-
-        absolute_value = np.absolute(value)
-        v_min = np.nanpercentile(absolute_value, 1)
-        v_med = np.nanpercentile(absolute_value, 50)
-        v_max = np.nanpercentile(absolute_value, 99)
-        exponent = np.log(0.5)/np.log((v_med-v_min)/(v_max-v_min))
-
-        if(self.active_fibre is not False):
-            plot_axis.plot(self.rss.offset_RA_arcsec[self.active_fibre],
-                           self.rss.offset_DEC_arcsec[self.active_fibre],
-                           markerfacecolor='none',
-                           markeredgecolor='black',
-                           markeredgewidth=2,
-                           markersize=np.sqrt(arcsec2_to_pt2),
-                           marker='h')
-        colour_map = plot_axis.scatter(self.rss.offset_RA_arcsec,
-                                       self.rss.offset_DEC_arcsec,
-                                       c=value,
-                                       norm=matplotlib.colors.PowerNorm(exponent),
-                                       vmin=v_min, vmax=v_max,
-                                       # cmap=fuego_color_map, norm=norm,
-                                       s=.6*arcsec2_to_pt2,
-                                       # ad-hoc scaling for KOALA
-                                       # (should be fibre_area;
-                                       # maybe colorbar?)
-                                       marker="h")
-        plot_axis.invert_xaxis()
-
-        plot_axis.set_xlim(RA_min, RA_max)
-        plot_axis.set_ylim(DEC_min, DEC_max)
-        plot_axis.set_title(self.rss.description+" - RSS map")
-        plot_axis.set_xlabel("$\Delta$ RA [arcsec]")
-        plot_axis.set_ylabel("$\Delta$ DEC [arcsec]")
-        fig.colorbar(colour_map, cax=cbar_axis)
-
-        self.canvas[plot].draw()
-
-    def file_clicked(self, filename=False):
+    def open_file(self, filename=False):
         if(filename is False):
             filename = \
                 tkFileDialog.askopenfilename(initialdir=".",
@@ -217,7 +121,16 @@ class MainApp(tk.Frame):
             }
 
         self.plot_range_current = copy.deepcopy(self.plot_range_original)
-        self.update_plots()
+#        self.update_plots()
+
+    # -------------------------------------------------------------------------
+
+    def sky_subtraction(self):
+        self.rss.find_sky_emission()
+        self.rss.intensity -= self.rss.sky_emission
+        self.update_parameters()
+
+    # -------------------------------------------------------------------------
 
     def plot_clicked(self, plot):
         print("PLOT CLICK --------------------", plot)
@@ -258,6 +171,173 @@ class MainApp(tk.Frame):
                 (np.float(self.min_values[thing].get()),
                  np.float(self.max_values[thing].get()))
         self.dialog_window.destroy()
+        self.update_plots()
+
+    def update_parameters(self, new_values={}):
+        print('WWWW')
+        self.set_parameter(new_values, 'RA_min',
+                           np.nanmin(self.rss.offset_RA_arcsec))
+        self.set_parameter(new_values, 'RA_max',
+                           np.nanmax(self.rss.offset_RA_arcsec))
+        self.set_parameter(new_values, 'DEC_min',
+                           np.nanmin(self.rss.offset_DEC_arcsec))
+        self.set_parameter(new_values, 'DEC_max',
+                           np.nanmax(self.rss.offset_DEC_arcsec))
+
+        l_min = self.rss.wavelength[0]
+        l_max = self.rss.wavelength[-1]
+        self.set_parameter(new_values, 'wl_min', l_min)
+        self.set_parameter(new_values, 'wl_max', l_max)
+        self.set_parameter(new_values, 'band_min', l_min)
+        self.set_parameter(new_values, 'band_max', l_max)
+
+        map_values = self.rss.flux_between(self.parameters['band_min'],
+                                           self.parameters['band_max'])[0]
+        map_min = np.nanpercentile(map_values, 1)
+        map_med = np.nanpercentile(map_values, 50)
+        map_max = np.nanpercentile(map_values, 99)
+        self.set_parameter(new_values, 'map_values', map_values)
+        self.set_parameter(new_values, 'map_min', map_min)
+        self.set_parameter(new_values, 'map_max', map_max)
+        self.set_parameter(new_values, 'exponent',
+                           np.log(0.5)/np.log((map_med-map_min)/(map_max-map_min)))
+
+        spec = np.nansum(self.rss.intensity, axis=0)/np.nansum(map_values)
+        self.parameters['spec_min'] = np.nanpercentile(spec, 1)
+        self.parameters['spec_max'] = np.nanpercentile(spec, 99)
+
+        self.update_plots()
+
+    def set_parameter(self, new_values, key, auto_value):
+        """
+        Update `self.parameters` to `new_values`.
+        If the `key` is not defined in `new_values` (or it is blank),
+        set it to the `auto_value` provided
+        """
+#        print('>>>>', key, new_values.get(key, 'NOPE'))
+        value = new_values.get(key, '')
+        if(value == ''):
+            self.parameters[key] = auto_value
+#            print('    a=', auto_value)
+        else:
+            self.parameters[key] = value
+#            print('    v=', value)
+#        print('    ', self.parameters.get(key, 'NOPE'))
+
+    # -------------------------------------------------------------------------
+
+    def update_plots(self):
+        self.update_RA_DEC_plot()
+        self.update_Spectra_plot()
+
+    def update_Spectra_plot(self):
+        print('sss')
+        wl_min = self.parameters['wl_min']
+        wl_max = self.parameters['wl_max']
+        spec_min = self.parameters['spec_min']
+        spec_max = self.parameters['spec_max']
+        band_min = self.parameters['band_min']
+        band_max = self.parameters['band_max']
+        map_values = self.parameters['map_values']
+
+        plt.figure('Spectra')
+        plt.clf()
+        plot_axis = plt.axes((.05, .1, .94, .85))  # left,bottom,width,height
+        plot_axis.set_xlim(wl_min, wl_max)
+        plot_axis.set_ylim(spec_min, spec_max)
+        plot_axis.set_xlabel("$\lambda [\AA]$")
+        plot_axis.set_ylabel("normalised intensity")
+
+        plot_axis.axvspan(band_min, band_max, alpha=0.1, color='c')
+
+        total_spec = np.nansum(self.rss.intensity, axis=0)
+        norm_total = np.nansum(map_values)
+        total_spec /= norm_total
+        plot_axis.plot(self.rss.wavelength, total_spec, 'b:',
+                       label='total ({:.3f})'.format(norm_total))
+
+        if(len(self.active_fibres) > 0):
+            active_spec = np.nansum(self.rss.intensity[self.active_fibres], axis=0)
+            norm_active = np.nansum(map_values[self.active_fibres])
+            active_spec /= norm_active
+            if(len(self.active_fibres) > 3):
+                lbl = 'fibres ({:.3f})'.format(norm_active)
+            else:
+                lbl = 'fibres {} ({:.3f})'.format(self.active_fibres, norm_active)
+            plot_axis.plot(self.rss.wavelength, active_spec, 'k-', label=lbl)
+
+        self.canvas['Spectra'].draw()
+
+    def update_RA_DEC_plot(self):
+        print('rrr')
+        RA_min = self.parameters['RA_min']
+        RA_max = self.parameters['RA_max']
+        DEC_min = self.parameters['DEC_min']
+        DEC_max = self.parameters['DEC_max']
+
+        map_values = self.parameters['map_values']
+        map_min = self.parameters['map_min']
+        map_max = self.parameters['map_max']
+        exponent = self.parameters['exponent']
+
+        fig = plt.figure('RA - DEC')
+        plt.clf()
+        plot_axis = plt.axes((.1, .08, .7, .7/.8))
+        cbar_axis = plt.axes((.85, .08, .05, .7/.8))
+        plot_axis.cla()
+
+        plot_axis.set_xlim(RA_min, RA_max)
+        plot_axis.set_ylim(DEC_min, DEC_max)
+        plot_axis.set_title(self.rss.description+" - RSS map")
+        plot_axis.set_xlabel("$\Delta$ RA [arcsec]")
+        plot_axis.set_ylabel("$\Delta$ DEC [arcsec]")
+
+        plot_axis.set_aspect('equal')
+        plot_axis.invert_xaxis()
+
+        bbox = plot_axis.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        plot_area_pt2 = bbox.width*bbox.height*fig.dpi**2
+        plot_area_arcsec2 = (RA_max-RA_min)*(DEC_max-DEC_min)
+        arcsec2_to_pt2 = plot_area_pt2/plot_area_arcsec2
+
+        colour_map = plot_axis.scatter(self.rss.offset_RA_arcsec,
+                                       self.rss.offset_DEC_arcsec,
+                                       c=map_values,
+                                       norm=matplotlib.colors.PowerNorm(exponent),
+                                       vmin=map_min, vmax=map_max,
+                                       # cmap=fuego_color_map, norm=norm,
+                                       s=.6*arcsec2_to_pt2,
+                                       # ad-hoc scaling for KOALA
+                                       # (should be fibre_area;
+                                       # maybe colorbar?)
+                                       marker="h")
+        plot_axis.plot(self.rss.offset_RA_arcsec[self.active_fibres],
+                       self.rss.offset_DEC_arcsec[self.active_fibres],
+                       linestyle='none',
+                       markerfacecolor='none',
+                       markeredgecolor='black',
+                       markeredgewidth=2,
+                       markersize=np.sqrt(arcsec2_to_pt2),
+                       marker='h')
+
+        fig.colorbar(colour_map, cax=cbar_axis)
+
+        self.canvas['RA - DEC'].draw()
+
+    def pick_fibre(self, event):
+        try:
+            fibre = np.argmin(
+                (self.rss.offset_RA_arcsec-event.xdata)**2 +
+                (self.rss.offset_DEC_arcsec-event.ydata)**2)
+            print('Fibre', fibre,
+                  'ID =', self.rss.ID[fibre],
+                  'is the closest to', event.xdata, event.ydata)
+            if(fibre in self.active_fibres):
+                self.active_fibres.remove(fibre)
+            else:
+                self.active_fibres.append(fibre)
+        except:
+            print('Clicked outside plot')
         self.update_plots()
 
 # -----------------------------------------------------------------------------

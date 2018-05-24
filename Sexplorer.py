@@ -20,8 +20,10 @@ if sys.version_info[0] < 3:
     import Tkinter as tk
     import tkFont
     import tkFileDialog
+    import ttk
 else:
     import tkinter as tk
+    from tkinter import ttk
     from tkinter import filedialog as tkFileDialog
 
 matplotlib.use("TkAgg")
@@ -30,51 +32,64 @@ color_normalisation = {'linear': matplotlib.colors.Normalize,
                        }
 
 
-class MainApp(tk.Frame):
+class MainApp(ttk.Frame):
     # -------------------------------------------------------------------------
 
     def __init__(self, parent):
 
         # --- set up the window
 
-        tk.Frame.__init__(self, parent)
+        ttk.Frame.__init__(self, parent)
         self.parent_window = parent
         self.parent_window.title('SELGIFS explorer')
         self.parent_window.bind('<Escape>', lambda f: root.destroy())
 
         # --- buttons
 
-        self.controls = tk.Frame(self)
-        tk.Button(self.controls,
-                  text='New RSS file',
-                  command=self.open_file).grid(row=0, sticky='ew')
-        tk.Button(self.controls,
-                  text='Sky subtraction',
-                  command=self.sky_subtraction).grid(row=1, sticky='ew')
-        self.controls.grid(row=0, column=0)
+        self.controls = ttk.Frame(self)
+        ttk.Button(self.controls,
+                   text='New RSS file',
+                   command=self.open_file).pack(fill=tk.X)
+#        ttk.Button(self.controls,
+#                   text='Fibre throughput',
+#                   command=self.fibre_throughput).pack(fill=tk.X)
+        ttk.Button(self.controls,
+                   text='Sky subtraction',
+                   command=self.sky_subtraction).pack(fill=tk.X)
+        ttk.Button(self.controls,
+                   text='Configure plots',
+                   command=self.configure_plots).pack(fill=tk.X)
+
+        self.active_fibres = []
+        self.pick_many_fibres = tk.IntVar()
+        ttk.Checkbutton(self.controls,
+                        text="Pick many fibre",
+                        variable=self.pick_many_fibres).pack(fill=tk.X)
+
+        self.controls.pack(side=tk.LEFT)
 
         # --- plots
 
-        self.plotting_area = tk.Frame(self)
+        self.plotting_area = ttk.Frame(self)
         self.figure = {}
         self.canvas = {}
 
-        self.add_panel('RA - DEC', (10, 8), 0, 0)
-        self.add_panel('Spectra', (20, 8), 0, 1)
-        self.plotting_area.grid(row=0, column=1)
+        self.add_panel('RA - DEC', (9, 8), 0, 0)
+        self.add_panel('Spectra', (19, 8), 0, 1)
+        self.plotting_area.pack(side=tk.LEFT)
 
         self.active_fibres = []
         self.canvas['RA - DEC'].mpl_connect('button_press_event', self.pick_fibre)
+#        self.canvas['RA - DEC'].mpl_connect('key_press_event', self.RA_DEC_key_press)
+#        self.canvas['RA - DEC'].mpl_connect('key_press_release', self.RA_DEC_key_release)
+        self.canvas['Spectra'].mpl_connect('button_press_event', self.pick_band)
 
         # --- variables and parameters
 
         self.parameters = {}
-        self.active_fibres = []
 
 #        self.open_file('')
         self.open_file('22may20047red.fits')
-
-        self.update_parameters()
 
     def add_panel(self, plot_name, size, row, col):
         fig = plt.figure(num=plot_name, figsize=size, dpi=100)
@@ -93,37 +108,14 @@ class MainApp(tk.Frame):
                                              filetypes=(("FITS files", "*.fits"),
                                                         ("all files", "*.*")))
         self.rss = KOALA.KOALA_RSS(filename)
-        self.rss.intensity -= self.rss.sky_emission
-
-        self.plot_range_original = {}
-        l_min = self.rss.wavelength[0]
-        l_max = self.rss.wavelength[-1]
-        value = self.rss.flux_between(l_min, l_max)[0]
-        self.plot_range_original['RA - DEC'] = {
-            'wavelength': (l_min, l_max),
-            'offset RA': (np.nanmin(self.rss.offset_RA_arcsec),
-                          np.nanmax(self.rss.offset_RA_arcsec)),
-            'offset DEC': (np.nanmin(self.rss.offset_DEC_arcsec),
-                           np.nanmax(self.rss.offset_DEC_arcsec)),
-            'value': (np.nanmin(value), np.nanmax(value)),
-            }
-
-        self.normalised_spectrum = np.nansum(self.rss.intensity, axis=0)
-        np.savetxt(filename+'_wavelength.txt', self.rss.wavelength)
-        np.savetxt(filename+'_spectrum.txt', self.normalised_spectrum)
-        np.savetxt(filename+'_sky.txt', self.rss.sky_emission)
-        self.normalised_spectrum *= self.rss.n_wave/np.nansum(self.normalised_spectrum)
-        
-        self.plot_range_original['Spectra'] = {
-            'wavelength': (l_min, l_max),
-            'value': (np.nanpercentile(self.normalised_spectrum, 1),
-                      np.nanpercentile(self.normalised_spectrum, 99)),
-            }
-
-        self.plot_range_current = copy.deepcopy(self.plot_range_original)
-#        self.update_plots()
+        self.update_parameters()
 
     # -------------------------------------------------------------------------
+
+    def fibre_throughput(self):
+        self.rss.find_relative_throughput()
+        self.rss.intensity /= self.rss.relative_throughput
+        self.update_parameters()
 
     def sky_subtraction(self):
         self.rss.find_sky_emission()
@@ -132,49 +124,107 @@ class MainApp(tk.Frame):
 
     # -------------------------------------------------------------------------
 
-    def plot_clicked(self, plot):
-        print("PLOT CLICK --------------------", plot)
+    def configure_plots(self):
         self.dialog_window = tk.Toplevel(self)
-        self.dialog_window.title('Configure plot:'+plot)
+        self.dialog_window.title('Plot parameters')
 
-        tk.Label(self.dialog_window, text="plot").grid(row=0, column=1, columnspan=2)
-        tk.Label(self.dialog_window, text="data").grid(row=0, column=3, columnspan=2)
-        tk.Label(self.dialog_window, text="min").grid(row=1, column=1)
-        tk.Label(self.dialog_window, text="max").grid(row=1, column=2)
-        tk.Label(self.dialog_window, text="min").grid(row=1, column=3)
-        tk.Label(self.dialog_window, text="max").grid(row=1, column=4)
-        row = 2
-        self.min_values = {}
-        self.max_values = {}
-        for thing in self.plot_range_original[plot]:
-            tk.Label(self.dialog_window, text=thing).grid(row=row, column=0)
-            self.min_values[thing] = tk.Entry(self.dialog_window)
-            self.min_values[thing].grid(row=row, column=1)
-            self.min_values[thing].delete(0, tk.END)
-            self.min_values[thing].insert(0, self.plot_range_current[plot][thing][0])
-            self.max_values[thing] = tk.Entry(self.dialog_window)
-            self.max_values[thing].grid(row=row, column=2)
-            self.max_values[thing].delete(0, tk.END)
-            self.max_values[thing].insert(0, self.plot_range_current[plot][thing][1])
-            tk.Label(self.dialog_window,
-                     text=self.plot_range_original[plot][thing][0]).grid(row=row, column=3)
-            tk.Label(self.dialog_window,
-                     text=self.plot_range_original[plot][thing][1]).grid(row=row, column=4)
-            row = row+1
+        row = 0
+        ttk.Label(self.dialog_window,
+                  text='Enter your preferred values for plot ranges').grid(
+                  row=row, column=0, columnspan=4)
+        row = row+1
+        ttk.Label(self.dialog_window,
+                  text='Leave it blank for automatic guess').grid(
+                  row=row, column=0, columnspan=4)
+        row = row+1
+        ttk.Separator(self.dialog_window, orient=tk.HORIZONTAL).grid(
+                      row=row, column=0, columnspan=4, sticky='nsew')
+        row = row+1
 
-        tk.Button(self.dialog_window, text="OK",
-                  command=lambda x=plot: self.plot_changed(x)).grid(row=row, column=1)
+        entry = {}
+        ttk.Label(self.dialog_window, text='RA').grid(row=row, column=0)
+        entry['RA_min'] = ttk.Entry(self.dialog_window)
+        entry['RA_min'].grid(row=row, column=1)
+        entry['RA_min'].insert(0, self.parameters['RA_min'])
+        entry['RA_max'] = ttk.Entry(self.dialog_window)
+        entry['RA_max'].grid(row=row, column=2)
+        entry['RA_max'].insert(0, self.parameters['RA_max'])
+        ttk.Label(self.dialog_window, text='Coordinate range').grid(row=row, column=3)
+        row = row+1
+        ttk.Label(self.dialog_window, text='DEC').grid(row=row, column=0)
+        entry['DEC_min'] = ttk.Entry(self.dialog_window)
+        entry['DEC_min'].grid(row=row, column=1)
+        entry['DEC_min'].insert(0, self.parameters['DEC_min'])
+        entry['DEC_max'] = ttk.Entry(self.dialog_window)
+        entry['DEC_max'].grid(row=row, column=2)
+        entry['DEC_max'].insert(0, self.parameters['DEC_max'])
+        row = row+1
+        ttk.Label(self.dialog_window, text='wavelength').grid(row=row, column=0)
+        entry['wl_min'] = ttk.Entry(self.dialog_window)
+        entry['wl_min'].grid(row=row, column=1)
+        entry['wl_min'].insert(0, self.parameters['wl_min'])
+        entry['wl_max'] = ttk.Entry(self.dialog_window)
+        entry['wl_max'].grid(row=row, column=2)
+        entry['wl_max'].insert(0, self.parameters['wl_max'])
+        ttk.Label(self.dialog_window, text='Range of spectrum plot').grid(row=row, column=3)
+        row = row+1
+        ttk.Label(self.dialog_window, text='Continuum band').grid(row=row, column=0)
+        entry['band_min'] = ttk.Entry(self.dialog_window)
+        entry['band_min'].grid(row=row, column=1)
+        entry['band_min'].insert(0, self.parameters['band_min'])
+        entry['band_max'] = ttk.Entry(self.dialog_window)
+        entry['band_max'].grid(row=row, column=2)
+        entry['band_max'].insert(0, self.parameters['band_max'])
+        ttk.Label(self.dialog_window, text='To compute mean intensities').grid(row=row, column=3)
+        row = row+1
+        ttk.Label(self.dialog_window, text='Colour map').grid(row=row, column=0)
+        entry['map_min'] = ttk.Entry(self.dialog_window)
+        entry['map_min'].grid(row=row, column=1)
+        entry['map_min'].insert(0, self.parameters['map_min'])
+        entry['map_max'] = ttk.Entry(self.dialog_window)
+        entry['map_max'].grid(row=row, column=2)
+        entry['map_max'].insert(0, self.parameters['map_max'])
+        ttk.Label(self.dialog_window, text='Intensity range in colour map').grid(row=row, column=3)
+        row = row+1
+        ttk.Label(self.dialog_window, text='exponent').grid(row=row, column=0)
+        entry['exponent'] = ttk.Entry(self.dialog_window)
+        entry['exponent'].grid(row=row, column=1)
+        entry['exponent'].insert(0, self.parameters['exponent'])
+        ttk.Label(self.dialog_window, text='for colour scale').grid(row=row, column=3)
+        row = row+1
+        ttk.Label(self.dialog_window, text='Spectra').grid(row=row, column=0)
+        entry['spec_min'] = ttk.Entry(self.dialog_window)
+        entry['spec_min'].grid(row=row, column=1)
+        entry['spec_min'].insert(0, self.parameters['spec_min'])
+        entry['spec_max'] = ttk.Entry(self.dialog_window)
+        entry['spec_max'].grid(row=row, column=2)
+        entry['spec_max'].insert(0, self.parameters['spec_max'])
+        ttk.Label(self.dialog_window, text='Intensity range in spectrum plot').grid(row=row, column=3)
+        row = row+1
+#        for thing in self.parameters:
+#            ttk.Label(self.dialog_window, text=thing).grid(row=row, column=0)
+#            entry[thing] = ttk.Entry(self.dialog_window)
+#            entry[thing].grid(row=row, column=1)
+##            entry[thing].delete(0, ttk.END)
+#            entry[thing].insert(0, self.parameters[thing])
+#            row = row+1
 
-    def plot_changed(self, plot):
-        for thing in self.plot_range_original[plot]:
-            self.plot_range_current[plot][thing] = \
-                (np.float(self.min_values[thing].get()),
-                 np.float(self.max_values[thing].get()))
+        ttk.Button(self.dialog_window, text="OK",
+                  command=lambda x=entry: self.config_OK(entry=x)).grid(row=row, column=0)
+        self.dialog_window.bind('<Return>', lambda event, x=entry: self.config_OK(event, x))
+
+        ttk.Button(self.dialog_window, text="Cancel",
+                  command=lambda x=entry: self.config_OK(x)).grid(row=row, column=1)
+        self.dialog_window.bind('<Escape>', lambda f: self.dialog_window.destroy())
+
+    def config_OK(self, event=None, entry={}):
+        values = {}
+        for thing in entry:
+            values[thing] = entry[thing].get()
         self.dialog_window.destroy()
-        self.update_plots()
+        self.update_parameters(values)
 
     def update_parameters(self, new_values={}):
-        print('WWWW')
         self.set_parameter(new_values, 'RA_min',
                            np.nanmin(self.rss.offset_RA_arcsec))
         self.set_parameter(new_values, 'RA_max',
@@ -190,23 +240,28 @@ class MainApp(tk.Frame):
         self.set_parameter(new_values, 'wl_max', l_max)
         self.set_parameter(new_values, 'band_min', l_min)
         self.set_parameter(new_values, 'band_max', l_max)
+        
+        self.reset_map(new_values)
 
-        map_values = self.rss.flux_between(self.parameters['band_min'],
-                                           self.parameters['band_max'])[0]
-        map_min = np.nanpercentile(map_values, 1)
-        map_med = np.nanpercentile(map_values, 50)
-        map_max = np.nanpercentile(map_values, 99)
-        self.set_parameter(new_values, 'map_values', map_values)
+        spec = np.nansum(self.rss.intensity, axis=0)/np.nansum(self.map_values)
+        self.set_parameter(new_values, 'spec_min', np.nanpercentile(spec, 1))
+        self.set_parameter(new_values, 'spec_max', np.nanpercentile(spec, 99))
+
+        self.update_plots()
+
+    def reset_map(self, new_values={}):
+        self.map_values = \
+            self.rss.flux_between(self.parameters['band_min'],
+                                  self.parameters['band_max'])[0] / \
+            (self.parameters['band_max']-self.parameters['band_min'])
+
+        map_min = np.nanpercentile(self.map_values, 1)
+        map_med = np.nanpercentile(self.map_values, 50)
+        map_max = np.nanpercentile(self.map_values, 99)
         self.set_parameter(new_values, 'map_min', map_min)
         self.set_parameter(new_values, 'map_max', map_max)
         self.set_parameter(new_values, 'exponent',
                            np.log(0.5)/np.log((map_med-map_min)/(map_max-map_min)))
-
-        spec = np.nansum(self.rss.intensity, axis=0)/np.nansum(map_values)
-        self.parameters['spec_min'] = np.nanpercentile(spec, 1)
-        self.parameters['spec_max'] = np.nanpercentile(spec, 99)
-
-        self.update_plots()
 
     def set_parameter(self, new_values, key, auto_value):
         """
@@ -220,7 +275,7 @@ class MainApp(tk.Frame):
             self.parameters[key] = auto_value
 #            print('    a=', auto_value)
         else:
-            self.parameters[key] = value
+            self.parameters[key] = float(value)
 #            print('    v=', value)
 #        print('    ', self.parameters.get(key, 'NOPE'))
 
@@ -231,14 +286,13 @@ class MainApp(tk.Frame):
         self.update_Spectra_plot()
 
     def update_Spectra_plot(self):
-        print('sss')
         wl_min = self.parameters['wl_min']
         wl_max = self.parameters['wl_max']
         spec_min = self.parameters['spec_min']
         spec_max = self.parameters['spec_max']
         band_min = self.parameters['band_min']
         band_max = self.parameters['band_max']
-        map_values = self.parameters['map_values']
+#        map_values = self.map_values
 
         plt.figure('Spectra')
         plt.clf()
@@ -251,31 +305,53 @@ class MainApp(tk.Frame):
         plot_axis.axvspan(band_min, band_max, alpha=0.1, color='c')
 
         total_spec = np.nansum(self.rss.intensity, axis=0)
-        norm_total = np.nansum(map_values)
+        norm_total = np.nansum(self.map_values)
         total_spec /= norm_total
         plot_axis.plot(self.rss.wavelength, total_spec, 'b:',
-                       label='total ({:.3f})'.format(norm_total))
+                       label='total ({:.3e})'.format(norm_total))
 
         if(len(self.active_fibres) > 0):
             active_spec = np.nansum(self.rss.intensity[self.active_fibres], axis=0)
-            norm_active = np.nansum(map_values[self.active_fibres])
+            norm_active = np.nansum(self.map_values[self.active_fibres])
             active_spec /= norm_active
-            if(len(self.active_fibres) > 3):
-                lbl = 'fibres ({:.3f})'.format(norm_active)
+            if(len(self.active_fibres) > 10):
+                lbl = 'fibres ({:.3e})'.format(norm_active)
             else:
-                lbl = 'fibres {} ({:.3f})'.format(self.active_fibres, norm_active)
+                lbl = 'fibres {} ({:.3e})'.format(self.active_fibres, norm_active)
             plot_axis.plot(self.rss.wavelength, active_spec, 'k-', label=lbl)
 
+        plot_axis.legend()
         self.canvas['Spectra'].draw()
 
+    def pick_band(self, event):
+        try:
+#            print(event.xdata)
+#            if(event.xdata < .5*(self.parameters['band_min']+self.parameters['band_max'])):
+#                print(.5*(self.parameters['band_min']+self.parameters['band_max']))
+#                self.parameters['band_min'] = event.xdata
+#            else:
+#                print('BAND')
+#                self.parameters['band_max'] = event.xdata
+            if(event.xdata < self.parameters['band_min']):
+                self.parameters['band_min'] = event.xdata
+            elif(event.xdata > self.parameters['band_max']):
+                self.parameters['band_max'] = event.xdata
+            elif(event.button == 1):
+                self.parameters['band_min'] = event.xdata
+            else:
+                self.parameters['band_max'] = event.xdata
+        except:
+            print('Clicked outside plot')
+        self.reset_map()
+        self.update_plots()
+
     def update_RA_DEC_plot(self):
-        print('rrr')
         RA_min = self.parameters['RA_min']
         RA_max = self.parameters['RA_max']
         DEC_min = self.parameters['DEC_min']
         DEC_max = self.parameters['DEC_max']
 
-        map_values = self.parameters['map_values']
+#        map_values = self.parameters['map_values']
         map_min = self.parameters['map_min']
         map_max = self.parameters['map_max']
         exponent = self.parameters['exponent']
@@ -302,11 +378,11 @@ class MainApp(tk.Frame):
 
         colour_map = plot_axis.scatter(self.rss.offset_RA_arcsec,
                                        self.rss.offset_DEC_arcsec,
-                                       c=map_values,
-                                       norm=matplotlib.colors.PowerNorm(exponent),
+                                       c=self.map_values,
+                                       norm=matplotlib.colors.PowerNorm(exponent, clip=False),
                                        vmin=map_min, vmax=map_max,
-                                       # cmap=fuego_color_map, norm=norm,
-                                       s=.6*arcsec2_to_pt2,
+                                       cmap=matplotlib.cm.terrain,
+                                       s=.5*arcsec2_to_pt2,
                                        # ad-hoc scaling for KOALA
                                        # (should be fibre_area;
                                        # maybe colorbar?)
@@ -317,7 +393,7 @@ class MainApp(tk.Frame):
                        markerfacecolor='none',
                        markeredgecolor='black',
                        markeredgewidth=2,
-                       markersize=np.sqrt(arcsec2_to_pt2),
+                       markersize=.6*np.sqrt(arcsec2_to_pt2),
                        marker='h')
 
         fig.colorbar(colour_map, cax=cbar_axis)
@@ -329,16 +405,30 @@ class MainApp(tk.Frame):
             fibre = np.argmin(
                 (self.rss.offset_RA_arcsec-event.xdata)**2 +
                 (self.rss.offset_DEC_arcsec-event.ydata)**2)
-            print('Fibre', fibre,
-                  'ID =', self.rss.ID[fibre],
-                  'is the closest to', event.xdata, event.ydata)
-            if(fibre in self.active_fibres):
-                self.active_fibres.remove(fibre)
+#            print('Fibre', fibre,
+#                  'ID =', self.rss.ID[fibre],
+#                  'is the closest to', event.xdata, event.ydata)
+            print(self.pick_many_fibres.get())
+            if(self.pick_many_fibres.get() == 1):
+                if(fibre in self.active_fibres):
+                    self.active_fibres.remove(fibre)
+                else:
+                    self.active_fibres.append(fibre)
             else:
-                self.active_fibres.append(fibre)
+                self.active_fibres = [fibre]
         except:
             print('Clicked outside plot')
         self.update_plots()
+
+#    def RA_DEC_key_press(self, event):
+#        print('press', self.pick_many_fibres)
+#        self.pick_many_fibres = (event.key == 'shift' or
+#                                 event.key == 'control')
+#        print(event.key, self.pick_many_fibres)
+#
+#    def RA_DEC_key_release(self, event):
+#        print('release')
+#        self.pick_many_fibres = False
 
 # -----------------------------------------------------------------------------
 # Main
@@ -351,7 +441,7 @@ if __name__ == "__main__":
     for font_name in tkFont.names():
         font = tkFont.nametofont(font_name)
         font.configure(size=12)
-    Sexplorer_window = MainApp(root).pack(side=tk.TOP)
+    Sexplorer_window = MainApp(root).pack()
     root.mainloop()
     plt.close()
 

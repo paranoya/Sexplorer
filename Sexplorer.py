@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # First attempt to show a KOALA RSS file, based on the
 # script to estimate AAT focus by Angel R. Lopez-Sanchez (AAO/MQU)
@@ -12,7 +12,7 @@ import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import KOALA_analysis as KOALA
-import copy
+#import copy
 
 # Tkinter is for python 2; tkinter is for python 3
 import sys
@@ -240,7 +240,7 @@ class MainApp(ttk.Frame):
         self.set_parameter(new_values, 'wl_max', l_max)
         self.set_parameter(new_values, 'band_min', l_min)
         self.set_parameter(new_values, 'band_max', l_max)
-        
+
         self.reset_map(new_values)
 
         spec = np.nansum(self.rss.intensity, axis=0)/np.nansum(self.map_values)
@@ -438,9 +438,9 @@ if __name__ == "__main__":
     root = tk.Tk()
 #    root.geometry("1000x730+10+10")
     root.resizable(0, 0)
-    for font_name in tkFont.names():
-        font = tkFont.nametofont(font_name)
-        font.configure(size=12)
+#    for font_name in tkFont.names():
+#        font = tkFont.nametofont(font_name)
+#        font.configure(size=12)
     Sexplorer_window = MainApp(root).pack()
     root.mainloop()
     plt.close()

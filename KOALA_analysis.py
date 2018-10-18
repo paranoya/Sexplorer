@@ -1,8 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # # KOALA analysis pipeline
 # Brief description of the KOALA class
 # by Ángel López and Yago
+
+from __future__ import print_function
+from __future__ import division
 
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -57,9 +60,9 @@ def fit_Moffat(r2_growth_curve, F_growth_curve,
                                   p0=(F_guess, r2_half_light, 1)
                                   )
     if plot:
-        print "Best-fit: L_star =", fit[0]
-        print "          alpha =", np.sqrt(fit[1])
-        print "          beta =", fit[2]
+        print("Best-fit: L_star =", fit[0])
+        print("          alpha =", np.sqrt(fit[1]))
+        print("          beta =", fit[2])
         r_norm = np.sqrt(np.array(r2_growth_curve) / r2_half_light)
         plt.plot(r_norm, cumulaive_Moffat(np.array(r2_growth_curve),
                                           fit[0], fit[1], fit[2])/fit[0], ':')
@@ -87,7 +90,7 @@ class Interpolated_cube(object):
             self.DEC_centre_deg = centre_deg[1]
         else:
             RA_min, RA_max, DEC_min, DEC_max = coord_range([RSS])
-#            print RA_min, RA_max, DEC_min, DEC_max
+#            print(RA_min, RA_max, DEC_min, DEC_max)
             self.RA_centre_deg = (RA_min + RA_max)/2.
             self.DEC_centre_deg = (DEC_min + DEC_max)/2.
         xoffset_centre_arcsec = (self.RA_centre_deg-RSS.RA_centre_deg)*3600.
@@ -105,8 +108,8 @@ class Interpolated_cube(object):
                  np.int(self.kernel_size_pixels + 2))
 
 
-#        print x_min, x_centre_arcsec, x_max, y_min, y_centre_arcsec, y_max,
-#        print self.n_rows, self.n_cols, self.RA_centre_deg, self.DEC_centre_deg
+#        print(x_min, x_centre_arcsec, x_max, y_min, y_centre_arcsec, y_max,)
+#        print(self.n_rows, self.n_cols, self.RA_centre_deg, self.DEC_centre_deg)
 
 ##        self.n_cols = int((np.max(RSS.offset_RA_arcsec) - np.min(RSS.offset_RA_arcsec) + 3*kernel_size_arcsec) / pixel_size_arcsec + 1)
 ##        self.n_rows = int((np.max(RSS.offset_DEC_arcsec) - np.min(RSS.offset_DEC_arcsec) + 3*kernel_size_arcsec) / pixel_size_arcsec + 1)
@@ -120,10 +123,10 @@ class Interpolated_cube(object):
         self._weighted_I = np.zeros((self.n_wave, self.n_rows, self.n_cols))
         self._weight = np.zeros_like(self._weighted_I)
 
-        print "\n> Smooth cube, (RA, DEC)_centre = ({}, {}) degree" \
-            .format(self.RA_centre_deg, self.DEC_centre_deg)
-        print "  size = {} columns (RA) x {} rows (DEC); {:.2f} x {:.2f} arcsec" \
-            .format(self.n_cols, self.n_rows, self.n_cols*pixel_size_arcsec, self.n_rows*pixel_size_arcsec)
+        print("\n> Smooth cube, (RA, DEC)_centre = ({}, {}) degree" \
+            .format(self.RA_centre_deg, self.DEC_centre_deg))
+        print("  size = {} columns (RA) x {} rows (DEC); {:.2f} x {:.2f} arcsec" \
+            .format(self.n_cols, self.n_rows, self.n_cols*pixel_size_arcsec, self.n_rows*pixel_size_arcsec))
         sys.stdout.write("  Adding {} spectra...       ".format(RSS.n_spectra))
         sys.stdout.flush()
         output_every_few = np.sqrt(RSS.n_spectra)+1
@@ -161,7 +164,7 @@ class Interpolated_cube(object):
         kernel_FWHM_pixels: float
           FWHM of the interpolating kernel, in pixels
         """
-#        print "---"
+#        print("---")
         kernel_centre_x = .5*self.n_cols + offset_cols
         x_min = int(kernel_centre_x - self.kernel_size_pixels)
         x_max = int(kernel_centre_x + self.kernel_size_pixels) + 1
@@ -170,7 +173,7 @@ class Interpolated_cube(object):
         x[0] = -1.
         x[-1] = 1.
         weight_x = np.diff((3.*x - x**3 + 2.) / 4)
-#        print x_min, kernel_centre, x_max
+#        print(x_min, kernel_centre, x_max)
 
         kernel_centre_y = .5*self.n_rows + offset_rows
         y_min = int(kernel_centre_y - self.kernel_size_pixels)
@@ -180,14 +183,14 @@ class Interpolated_cube(object):
         y[0] = -1.
         y[-1] = 1.
         weight_y = np.diff((3.*y - y**3 + 2.) / 4)
-#        print y_min, kernel_centre, y_max
+#        print(y_min, kernel_centre, y_max)
 
         if x_min < 0 or x_max >= self.n_cols or y_min < 0 or y_max >= self.n_rows:
-            print "\n***************************************"
-            print "WARNING: Spectra outside field of view:"
-            print x_min, kernel_centre_x, x_max
-            print y_min, kernel_centre_y, y_max
-            print "***************************************"
+            print("\n***************************************")
+            print("WARNING: Spectra outside field of view:")
+            print(x_min, kernel_centre_x, x_max)
+            print(y_min, kernel_centre_y, y_max)
+            print("***************************************")
         else:
             bad_wavelengths = np.argwhere(np.isnan(intensity))
             intensity[bad_wavelengths] = 0.
@@ -196,7 +199,7 @@ class Interpolated_cube(object):
             self._weighted_I[:, y_min:y_max-1, x_min:x_max-1] += intensity[:, np.newaxis, np.newaxis] * weight_y[np.newaxis, :, np.newaxis] * weight_x[np.newaxis, np.newaxis, :]
             self._weight[:, y_min:y_max-1, x_min:x_max-1] += ones[:, np.newaxis, np.newaxis] * weight_y[np.newaxis, :, np.newaxis] * weight_x[np.newaxis, np.newaxis, :]
 
-#        print self._weight[y_min:y_max-1, x_min:x_max-1]
+#        print(self._weight[y_min:y_max-1, x_min:x_max-1])
 
 #        Old stuff:
 #        dx = np.arange(self.n_cols) - image_centre - offset_cols
@@ -205,7 +208,7 @@ class Interpolated_cube(object):
 #        deltas = np.meshgrid(dx, dy)
 #        normalised_distance_from_fibre_squared = (deltas[0]**2 + deltas[1]**2) / kernel_FWHM_pixels**2
 #        fibre_weights = self._kernel(normalised_distance_from_fibre_squared)
-#        
+#
 #        self._weight += fibre_weights
 #        self._weighted_I = self._weighted_I + np.outer(intensity, fibre_weights).reshape((self.n_wave, self.n_rows, self.n_cols))
 
@@ -261,19 +264,19 @@ class Interpolated_cube(object):
 #    def find_peak_at_wavelength(self, index, tolerance_in_pixels):
 #        x = np.arange(self.n_cols)
 #        y = np.arange(self.n_rows)
-#    
+#
 #        weight = self.data[index]**2
 #        x_peak, var_x = weighted_mean_and_variance(x, np.nansum(weight, axis=0))
 #        y_peak, var_y = weighted_mean_and_variance(y, np.nansum(weight, axis=1))
-#    
+#
 #        delta = tolerance_in_pixels**2 + 1
 #        while delta > tolerance_in_pixels**2:
 #            new_weight = weight * np.exp(-.5*((x-x_peak)**2/(var_x+4))[np.newaxis, :] - .5*((y-y_peak)**2/(var_y+4))[:, np.newaxis])
 #            new_x, new_var_x = weighted_mean_and_variance(x, np.nansum(new_weight, axis=0))
 #            new_y, new_var_y = weighted_mean_and_variance(y, np.nansum(new_weight, axis=1))
 #            delta = (new_x-x_peak)**2 + (new_y-y_peak)**2
-#    #        print x_peak, y_peak, var_x, var_y, np.sqrt(delta)
-#    #        print new_x, new_y, new_var_x, new_var_y, np.sqrt(delta)
+#    #        print(x_peak, y_peak, var_x, var_y, np.sqrt(delta)
+#    #        print(new_x, new_y, new_var_x, new_var_y, np.sqrt(delta)
 #            x_peak = new_x
 #            y_peak = new_y
 #    #        var_x = new_var_x
@@ -284,7 +287,7 @@ class Interpolated_cube(object):
 #
 #    # -------------------------------------------------------------------------
 #    def trace_peak(self, tolerance_in_pixels=0.01, plot=True):
-#        print "\n> Tracing intensity peak over all wavelengths with {:.3f} pixels tolerance...".format(tolerance_in_pixels)
+#        print("\n> Tracing intensity peak over all wavelengths with {:.3f} pixels tolerance...".format(tolerance_in_pixels)
 ##        peak = np.array([self.find_peak_at_wavelength(wavelength, tolerance_in_pixels)
 ##                        for wavelength in range(self.n_wave)])
 #        peak = []
@@ -309,14 +312,14 @@ class Interpolated_cube(object):
 #        x = (self.x_peak-.5*self.n_cols)*self.pixel_size_arcsec
 #        y = (self.y_peak-.5*self.n_rows)*self.pixel_size_arcsec
 #
-#        print "  Peak offset in arcsec from image centre:"
-#        print "  (RA, DEC) = ({:.2f}+-{:.2f}, {:.2f}+-{:.2f})"\
+#        print("  Peak offset in arcsec from image centre:"
+#        print("  (RA, DEC) = ({:.2f}+-{:.2f}, {:.2f}+-{:.2f})"\
 #              .format(np.nanmedian(x),
 #                      (np.nanpercentile(x, 84)-np.nanpercentile(x, 16))/2,
 #                      np.nanmedian(y),
 #                      (np.nanpercentile(y, 84)-np.nanpercentile(y, 16))/2
 #                      )
-#        print "  DONE!"
+#        print("  DONE!"
 #
 #        if plot:
 #            plt.figure(figsize=(10, 5))
@@ -335,7 +338,7 @@ class Interpolated_cube(object):
 
     # -------------------------------------------------------------------------
     def trace_peak(self, plot=False):
-        print "\n> Tracing intensity peak over all wavelengths..."
+        print("\n> Tracing intensity peak over all wavelengths...")
         x = np.arange(self.n_cols)
         y = np.arange(self.n_rows)
         weight = np.nan_to_num(self.data)
@@ -365,10 +368,10 @@ class Interpolated_cube(object):
             plt.title(self.RSS.description)
             plt.show()
             plt.close()
-        print "  Peak coordinates, in pixel: ({:.2f}+-{:.2f}, {:.2f}+-{:.2f})"\
+        print("  Peak coordinates, in pixel: ({:.2f}+-{:.2f}, {:.2f}+-{:.2f})"\
               .format(np.nanmedian(self.x_peak), np.std(self.x_peak),
-                      np.nanmedian(self.y_peak), np.std(self.y_peak))
-        print "  DONE!"
+                      np.nanmedian(self.y_peak), np.std(self.y_peak)))
+        print("  DONE!")
 
     # -------------------------------------------------------------------------
     def growth_curve_between(self, lambda_min, lambda_max, plot=False):
@@ -388,7 +391,7 @@ class Interpolated_cube(object):
         for spaxel in sorted_by_distance:
             index = np.unravel_index(spaxel, (self.n_rows, self.n_cols))
             I = intensity[index]
-    #        print spaxel, r2[index], L, total_flux, np.isnan(L)
+    #        print(spaxel, r2[index], L, total_flux, np.isnan(L)
     #        if np.isnan(L) == False and L > 0:
             if np.isnan(I) == False:
                 total_flux += I  # TODO: Properly account for solid angle...
@@ -401,9 +404,9 @@ class Interpolated_cube(object):
         if plot:
             r_norm = np.sqrt(np.array(r2_growth_curve) / r2_half_light)
             F_norm = np.array(F_growth_curve) / F_guess
-            print "Flux guess =", F_guess, np.nansum(intensity), np.nansum(intensity)/F_guess
-            print "Half-light radius:", np.sqrt(r2_half_light)*self.pixel_size_arcsec
-            print "Light within 2, 3, 4 half-lght radii:", np.interp([2, 3, 4], r_norm, F_norm)
+            print("Flux guess =", F_guess, np.nansum(intensity), np.nansum(intensity)/F_guess)
+            print("Half-light radius:", np.sqrt(r2_half_light)*self.pixel_size_arcsec)
+            print("Light within 2, 3, 4 half-lght radii:", np.interp([2, 3, 4], r_norm, F_norm))
             plt.plot(r_norm, F_norm, '-')
 
         return r2_growth_curve, F_growth_curve, F_guess, r2_half_light
@@ -411,15 +414,15 @@ class Interpolated_cube(object):
     # -------------------------------------------------------------------------
     def half_light_spectrum(self, r_max=1, plot=False):
         r2_growth_curve, F_growth_curve, flux, r2_half_light = self.growth_curve_between(0, 1e30)
-        print "\n> Computing growth-curve spectrum..."
+        print("\n> Computing growth-curve spectrum...")
         intensity = []
         smooth_x = signal.medfilt(self.x_peak, 11)
         smooth_y = signal.medfilt(self.y_peak, 11)
         for l in range(self.n_wave):
             wavelength = self.RSS.wavelength[l]
             if l % (self.n_wave/10+1) == 0:
-                print "  {:.2f} Angstroms (wavelength {}/{})..." \
-                      .format(wavelength, l+1, self.n_wave)
+                print("  {:.2f} Angstroms (wavelength {}/{})..." \
+                      .format(wavelength, l+1, self.n_wave))
             x = np.arange(self.n_cols) - smooth_x[l]
             y = np.arange(self.n_rows) - smooth_y[l]
             r2 = np.sum(np.meshgrid(x**2, y**2), axis=0)
@@ -468,9 +471,9 @@ class Interpolated_cube(object):
                                        flux, r2_half_light, r_fit, plot)
         r2_half_light = alpha * (np.power(2., 1./beta) - 1)
         if plot:
-            print "Moffat fit: Flux = {:.3e},".format(flux), \
+            print("Moffat fit: Flux = {:.3e},".format(flux), \
                 "HWHM = {:.3f},".format(np.sqrt(r2_half_light)*self.pixel_size_arcsec), \
-                "beta = {:.3f}".format(beta)
+                "beta = {:.3f}".format(beta))
 
         return flux, np.sqrt(r2_half_light)*self.pixel_size_arcsec, beta
 
@@ -478,7 +481,7 @@ class Interpolated_cube(object):
     def total_spectrum(self):
         x = np.arange(self.n_cols)
         y = np.arange(self.n_rows)
-        
+
         self.data
 
 
@@ -501,7 +504,7 @@ class RSS(object):
     # -------------------------------------------------------------------------
     def __init__(self):
         self.description = "Undefined row-stacked spectra (RSS)"
-        
+
         self.n_spectra = 0
         self.n_wave = 0
 
@@ -520,8 +523,8 @@ class RSS(object):
         self.n_wave = len(wavelength)
 
         if variance.shape != intensity.shape:
-            print "\n* ERROR: * the intensity and variance matrices are", \
-                  intensity.shape, "and", variance.shape, "respectively\n"
+            print("\n* ERROR: * the intensity and variance matrices are", \
+                  intensity.shape, "and", variance.shape, "respectively\n")
             raise ValueError
         n_dim = len(intensity.shape)
         if n_dim == 2:
@@ -531,26 +534,26 @@ class RSS(object):
             self.intensity = intensity.reshape((1, self.n_wave))
             self.variance = variance.reshape((1, self.n_wave))
         else:
-            print "\n* ERROR: * the intensity matrix supplied has", \
-                  n_dim, "dimensions\n"
+            print("\n* ERROR: * the intensity matrix supplied has", \
+                  n_dim, "dimensions\n")
             raise ValueError
 
         self.n_spectra = self.intensity.shape[0]
         self.n_wave = len(self.wavelength)
-        print "  {} spectra with {} wavelengths" \
+        print("  {} spectra with {} wavelengths" \
               .format(self.n_spectra, self.n_wave), \
               "between {:.2f} and {:.2f} Angstrom" \
-              .format(self.wavelength[0], self.wavelength[-1])
+              .format(self.wavelength[0], self.wavelength[-1]))
         if self.intensity.shape[1] != self.n_wave:
-            print "\n* ERROR: * spectra have", self.intensity.shape[1], \
-                  "wavelengths rather than", self.n_wave
+            print("\n* ERROR: * spectra have", self.intensity.shape[1], \
+                  "wavelengths rather than", self.n_wave)
             raise ValueError
         if len(offset_RA_arcsec) != self.n_spectra or \
            len(offset_DEC_arcsec) != self.n_spectra:
-            print "\n* ERROR: * offsets (RA, DEC) = ({},{})" \
+            print("\n* ERROR: * offsets (RA, DEC) = ({},{})" \
                   .format(len(self.offset_RA_arcsec),
                           len(self.offset_DEC_arcsec)), \
-                  "rather than", self.n_spectra
+                  "rather than", self.n_spectra)
             raise ValueError
         else:
             self.offset_RA_arcsec = offset_RA_arcsec
@@ -642,14 +645,14 @@ class RSS(object):
 #    # -------------------------------------------------------------------------
 #    def find_sky_emission(self, reference_min, reference_max,
 #                          filename='sky_lines.txt'):
-#        print "\n> Identifying sky spaxels based on wavelenth interval:", \
+#        print("\n> Identifying sky spaxels based on wavelenth interval:", \
 #              reference_min, reference_max
-#        print "  Sky lines in file '{}':".format(filename)
+#        print("  Sky lines in file '{}':".format(filename)
 #        self.sky_line_flux = []
 #        self.sky_line_variance = []
 #        sky_lines_list = np.loadtxt(filename)
 #        for line in sky_lines_list:
-#            print "   ", line[2], "-", line[3], "Angstrom"
+#            print("   ", line[2], "-", line[3], "Angstrom"
 #            flux_sky, var_sky = self.line_flux(line[0], line[1],
 #                                               line[2], line[3],
 #                                               line[4], line[5])
@@ -663,7 +666,7 @@ class RSS(object):
 
     # -------------------------------------------------------------------------
     def find_sky_emission(self, plot=False):
-        print "\n> Identifying sky spaxels..."
+        print("\n> Identifying sky spaxels...")
         I = np.nanmedian(self.intensity, axis=0)
         I2 = np.nanmean(self.intensity**2, axis=0)
         var = np.sqrt(I2-I**2)
@@ -707,10 +710,10 @@ class RSS(object):
             if delta < minimum_delta:
                 minimum_delta = delta
                 optimal_n = n
-#            print n, delta
+#            print(n, delta
 #            plt.semilogy(n, delta, 'k*')
             n += n/5 + 1
-        print " ", optimal_n, "spaxels identified as sky"
+        print(" ", optimal_n, "spaxels identified as sky")
         self.sky_spaxels = sorted_by_flux[:optimal_n]
         self.sky_emission = np.nanmedian(self.intensity[sorted_by_flux[:optimal_n]], axis=0)
         if plot:
@@ -732,17 +735,17 @@ class RSS(object):
         relative_throughput_var = np.nanmean(line_throughput_var, axis=0)
         global_mean_throughput = np.nanmean(self.relative_throughput)
         global_var_throughput = np.nanvar(self.relative_throughput)
-        print "\n> Relative throughput: {:.3f} +- {:.3f} using {} skypl lines" \
+        print("\n> Relative throughput: {:.3f} +- {:.3f} using {} skypl lines" \
               .format(np.nanmean(self.relative_throughput),
                       np.nanvar(self.relative_throughput),
-                      len(self.sky_line_flux))
-        print "                       (min, max) = ({:.3f}, {:.3f}), {} NaNs" \
+                      len(self.sky_line_flux)))
+        print("                       (min, max) = ({:.3f}, {:.3f}), {} NaNs" \
               .format(np.nanmin(self.relative_throughput),
                       np.nanmax(self.relative_throughput),
-                      np.isnan(self.relative_throughput).sum())
-        print "  overall flux correction: {:.3f}" \
+                      np.isnan(self.relative_throughput).sum()))
+        print("  overall flux correction: {:.3f}" \
               .format(np.nansum(self.intensity*self.relative_throughput[:, np.newaxis]) /
-                      np.nansum(self.intensity))
+                      np.nansum(self.intensity)))
 
         global_var_throughput *= 3.
         new_inverse_variance = 1/relative_throughput_var + 1/global_var_throughput
@@ -751,17 +754,17 @@ class RSS(object):
         self.relative_throughput /= new_inverse_variance
         flux_correction = np.nansum(self.intensity*self.relative_throughput[:, np.newaxis]) / np.nansum(self.intensity)
         self.relative_throughput /= flux_correction
-        print "  Relative throughput: {:.3f} +- {:.3f} using {} skypl lines" \
+        print("  Relative throughput: {:.3f} +- {:.3f} using {} skypl lines" \
               .format(np.nanmean(self.relative_throughput),
                       np.nanvar(self.relative_throughput),
-                      len(self.sky_line_flux))
-        print "                       (min, max) = ({:.3f}, {:.3f}), {} NaNs" \
+                      len(self.sky_line_flux)))
+        print("                       (min, max) = ({:.3f}, {:.3f}), {} NaNs" \
               .format(np.nanmin(self.relative_throughput),
                       np.nanmax(self.relative_throughput),
-                      np.isnan(self.relative_throughput).sum())
-        print "  overall flux correction: {:.3f}" \
+                      np.isnan(self.relative_throughput).sum()))
+        print("  overall flux correction: {:.3f}" \
               .format(np.nansum(self.intensity*self.relative_throughput[:, np.newaxis]) /
-                      np.nansum(self.intensity))
+                      np.nansum(self.intensity)))
 
 #    # -------------------------------------------------------------------------
 #    def RSS_map(self, variable, norm=colors.LogNorm(), list_spectra='all'):
@@ -807,16 +810,16 @@ class RSS(object):
         extinction_curve = data_observatory[1]
         extinction_corrected_airmass = 10**(0.4*self.airmass*extinction_curve)
 
-#        print data_observatory[1]
-#        print " "
+#        print(data_observatory[1]
+#        print(" "
 #        for i in range(len(extinction_curve)):
-#            print extinction_curve_wavelenghts[i],extinction_curve[i],extinction_corrected_airmass[i]
+#            print(extinction_curve_wavelenghts[i],extinction_curve[i],extinction_corrected_airmass[i]
 
         tck = interpolate.splrep(extinction_curve_wavelenghts, extinction_corrected_airmass, s=0)
         self.extinction_correction = interpolate.splev(self.wavelength, tck, der=0)
 #        self.intensity_corrected_extinction = self.intensity * self.extinction_correction
 
-        # Plot  
+        # Plot
         if plot == True:
             plt.figure(figsize=(10, 5))
             plt.plot(extinction_curve_wavelenghts, extinction_corrected_airmass, '+')
@@ -824,12 +827,12 @@ class RSS(object):
             cinco_por_ciento = 0.05 * (np.max(self.extinction)- np.min(self.extinction))
             plt.ylim(np.min(self.extinction)-cinco_por_ciento,np.max(self.extinction)+cinco_por_ciento)
             plt.plot(self.wavelength,self.extinction, "g")
-            plt.minorticks_on() 
+            plt.minorticks_on()
             plt.title('Correction for extinction using airmass = '+str(self.airmass))
 
-        print "  Airmass = ", self.airmass
-        print "  Observatory file with extinction curve :", observatory_file
-        print "  Correction for extinction using airmass obtained!"
+        print("  Airmass = ", self.airmass)
+        print("  Observatory file with extinction curve :", observatory_file)
+        print("  Correction for extinction using airmass obtained!")
 
 
 # -----------------------------------------------------------------------------
@@ -863,7 +866,7 @@ class KOALA_RSS(RSS):
         # Create RSS object
         super(KOALA_RSS, self).__init__()
 
-        print "\n> Reading file", '"'+filename+'"', "..."
+        print("\n> Reading file", '"'+filename+'"', "...")
         RSS_fits_file = fits.open(filename)  # Open file
 
 #        General info:
@@ -879,8 +882,8 @@ class KOALA_RSS(RSS):
         all_spaxels = range(len(RSS_fits_file[2].data))
         quality_flag = [RSS_fits_file[2].data[i][11] for i in all_spaxels]
         good_spaxels = [i for i in all_spaxels if quality_flag[i] == 'P']
-#        print quality_flag
-#        print np.where(quality_flag!='P')
+#        print(quality_flag
+#        print(np.where(quality_flag!='P')
 
         # Create wavelength, intensity, and variance arrays
         wcsKOALA = WCS(RSS_fits_file[0].header)
@@ -897,7 +900,7 @@ class KOALA_RSS(RSS):
                       offset_RA_arcsec, offset_DEC_arcsec)
         # Check that dimensions match KOALA numbers
         if self.n_wave != 2048 and len(all_spaxels) != 1000:
-            print "\n *** WARNING *** : These numbers are NOT the standard ones for KOALA"
+            print("\n *** WARNING *** : These numbers are NOT the standard ones for KOALA")
 
         # KOALA-specific stuff
         self.ID = np.array([RSS_fits_file[2].data[i][0] for i in good_spaxels])
@@ -920,15 +923,15 @@ class KOALA_RSS(RSS):
             self.spaxel_size = 0.7
             field = "NARROW"
 
-        # Print information from header
-        print "  This is a KOALA '{}' file,".format(AAOmega_Arm), \
-              "using grating '{}' in AAOmega".format(self.grating)
-        print "  Object:", self.object
-        print "  Field of view:", field, \
-              "(spaxel size =", self.spaxel_size, "arcsec)"
-        print "  Center position: (RA, DEC) = ({:.3f}, {:.3f}) degree" \
-              .format(self.RA_centre_deg, self.DEC_centre_deg)
-        print "  Position angle (PA) = {:.2f}".format(self.PA)
+        # print(information from header
+        print("  This is a KOALA '{}' file,".format(AAOmega_Arm), \
+              "using grating '{}' in AAOmega".format(self.grating))
+        print("  Object:", self.object)
+        print("  Field of view:", field, \
+              "(spaxel size =", self.spaxel_size, "arcsec)")
+        print("  Center position: (RA, DEC) = ({:.3f}, {:.3f}) degree" \
+              .format(self.RA_centre_deg, self.DEC_centre_deg))
+        print("  Position angle (PA) = {:.2f}".format(self.PA))
 
         # Get airmass and do extinction
         ZD = (RSS_fits_file[0].header['ZDSTART'] +
@@ -936,7 +939,7 @@ class KOALA_RSS(RSS):
         self.airmass = 1 / np.cos(np.radians(ZD))
         self.do_extinction_curve('ssoextinct.dat')
 
-        print "  DONE!"
+        print("  DONE!")
 
 #   --------------------------------------------------------------------
 
@@ -965,18 +968,18 @@ def plot_object(cube, index):
     plt.imshow(interpolated_map, origin='lower', interpolation='none', norm=colors.LogNorm())
 
     I_max = np.unravel_index(np.nanargmax(interpolated_map), interpolated_map.shape)
-    print 'maximum_I:', I_max[1], I_max[0], interpolated_map.shape
+    print('maximum_I:', I_max[1], I_max[0], interpolated_map.shape)
     plt.plot(I_max[1], I_max[0], 'w+', ms=50, mew=3)
 
     weight = interpolated_map**2
     total_weight = np.nansum(weight)
     x_cm = np.sum(np.arange(interpolated_map.shape[1])*np.nansum(weight, axis=0)) / total_weight
     y_cm = np.sum(np.arange(interpolated_map.shape[0])*np.nansum(weight, axis=1)) / total_weight
-    print 'initial cm:', x_cm, y_cm
+    print('initial cm:', x_cm, y_cm)
     plt.plot(x_cm, y_cm, 'bx', ms=50, mew=3)
-    
+
     x_cm, y_cm = find_cm(cube, index)
-    print 'final cm:', x_cm, y_cm
+    print('final cm:', x_cm, y_cm)
     plt.plot(x_cm, y_cm, 'wx', ms=50, mew=3)
 
     plt.colorbar()
@@ -1003,7 +1006,7 @@ def plot_object(cube, index):
 #    r2 = np.sum(np.meshgrid(x**2, y**2), axis=0)
 #
 #    sorted_by_distance = np.argsort(r2, axis=None)
-#    print r2.shape, sorted_by_distance.shape
+#    print(r2.shape, sorted_by_distance.shape
 #
 #    L_growth_curve = []
 #    r_growth_curve = []
@@ -1011,7 +1014,7 @@ def plot_object(cube, index):
 #    for spaxel in sorted_by_distance:
 #        index = np.unravel_index(spaxel, (cube.n_rows, cube.n_cols))
 #        L = cube.data[wavelength][index]
-##        print spaxel, r2[index], L, total_luminosity, np.isnan(L)
+##        print(spaxel, r2[index], L, total_luminosity, np.isnan(L)
 #        if np.isnan(L) == False:
 #            total_luminosity += L
 #            L_growth_curve.append(total_luminosity)
@@ -1022,14 +1025,14 @@ def plot_object(cube, index):
 
 #def half_light_spectrum(cube, plot=False):
 #    r2_growth_curve, F_growth_curve, flux, r2_half_light = cube.growth_curve_between(0, 1e30)
-#    print "\n> Computing growth-curve spectrum..."
+#    print("\n> Computing growth-curve spectrum..."
 #    intensity = []
 #    smooth_x = signal.medfilt(cube.x_peak, 11)
 #    smooth_y = signal.medfilt(cube.y_peak, 11)
 #    for l in range(cube.n_wave):
 #        wavelength = cube.RSS.wavelength[l]
 #        if l % (cube.n_wave/10+1) == 0:
-#            print "  {:.2f} Angstroms (wavelength {}/{})..." \
+#            print("  {:.2f} Angstroms (wavelength {}/{})..." \
 #                  .format(wavelength, l+1, cube.n_wave)
 #        x = np.arange(cube.n_cols) - smooth_x[l]
 #        y = np.arange(cube.n_rows) - smooth_y[l]
@@ -1052,12 +1055,12 @@ def plot_object(cube, index):
 
 
 def KOALA_offsets(s, pa):
-    print "\n> Offsets towards North and East between pointings," \
-        "according to KOALA manual, for pa =", pa, "degrees"
+    print("\n> Offsets towards North and East between pointings," \
+        "according to KOALA manual, for pa =", pa, "degrees")
     pa *= np.pi/180
-    print "  a -> b :", s*np.sin(pa), -s*np.cos(pa)
-    print "  a -> c :", -s*np.sin(60-pa), -s*np.cos(60-pa)
-    print "  b -> d :", -np.sqrt(3)*s*np.cos(pa), -np.sqrt(3)*s*np.sin(pa)
+    print("  a -> b :", s*np.sin(pa), -s*np.cos(pa))
+    print("  a -> c :", -s*np.sin(60-pa), -s*np.cos(60-pa))
+    print("  b -> d :", -np.sqrt(3)*s*np.cos(pa), -np.sqrt(3)*s*np.sin(pa))
 
 
 def offset_between_cubes(cube1, cube2, plot=True):
@@ -1069,18 +1072,18 @@ def offset_between_cubes(cube1, cube2, plot=True):
     delta_DEC_pix = np.nanmedian(y)
 #    weight = np.nansum(cube1.data+cube2.data, axis=(1, 2))
 #    total_weight = np.nansum(weight)
-#    print "--- lambda=", np.nansum(cube1.RSS.wavelength*weight) / total_weight
+#    print("--- lambda=", np.nansum(cube1.RSS.wavelength*weight) / total_weight
 #    delta_RA_pix = np.nansum(x*weight) / total_weight
 #    delta_DEC_pix = np.nansum(y*weight) / total_weight
     delta_RA_arcsec = delta_RA_pix * cube1.pixel_size_arcsec
     delta_DEC_arcsec = delta_DEC_pix * cube1.pixel_size_arcsec
-    print '(delta_RA, delta_DEC) = ({:.3f}, {:.3f}) arcsec' \
-        .format(delta_RA_arcsec, delta_DEC_arcsec)
+    print('(delta_RA, delta_DEC) = ({:.3f}, {:.3f}) arcsec' \
+        .format(delta_RA_arcsec, delta_DEC_arcsec))
 #    delta_RA_headers = (cube2.RSS.RA_centre_deg - cube1.RSS.RA_centre_deg) * 3600
 #    delta_DEC_headers = (cube2.RSS.DEC_centre_deg - cube1.RSS.DEC_centre_deg) * 3600
-#    print '                        ({:.3f}, {:.3f}) arcsec according to headers!!!???' \
+#    print('                        ({:.3f}, {:.3f}) arcsec according to headers!!!???' \
 #        .format(delta_RA_headers, delta_DEC_headers)
-#    print 'difference:             ({:.3f}, {:.3f}) arcsec' \
+#    print('difference:             ({:.3f}, {:.3f}) arcsec' \
 #        .format(delta_RA-delta_RA_headers, delta_DEC-delta_DEC_headers)
 
     if plot:
@@ -1140,7 +1143,7 @@ def plot_response(cube, calibration_star_cubes):
         mean_curve += np.interp(wavelength, wl, R)
         plt.plot(star.response_wavelength, star.response_curve,
                  label=star.RSS.description)
-        print np.nanmean(star.response_curve)
+        print(np.nanmean(star.response_curve))
     mean_curve /= len(calibration_star_cubes)
     plt.plot(wavelength, mean_curve, 'k.', label='mean response curve')
     plt.legend(frameon=False)
@@ -1166,7 +1169,7 @@ def coord_range(rss_list):
 
 if __name__ == "__main__":
 
-    print "\nTesting KOALA RSS class..."
+    print("\nTesting KOALA RSS class...")
 #    KOALA_offsets(1.25, 120)
 
 #   --------------------------------------------------------------------
@@ -1239,13 +1242,13 @@ if __name__ == "__main__":
 #    growth_curve(cube3s)
 #    plt.show()
 
-#    print cube1s.growth_curve_between(6750, 6850)[2], \
+#    print(cube1s.growth_curve_between(6750, 6850)[2], \
 #        cube1s.growth_curve_between(6850, 6950)[2], \
 #        cube1s.growth_curve_between(6950, 7050)[2]
-#    print cube2s.growth_curve_between(6750, 6850)[2], \
+#    print(cube2s.growth_curve_between(6750, 6850)[2], \
 #        cube2s.growth_curve_between(6850, 6950)[2], \
 #        cube2s.growth_curve_between(6950, 7050)[2]
-#    print cube3s.growth_curve_between(6750, 6850)[2], \
+#    print(cube3s.growth_curve_between(6750, 6850)[2], \
 #        cube3s.growth_curve_between(6850, 6950)[2], \
 #        cube3s.growth_curve_between(6950, 7050)[2]
 
@@ -1286,7 +1289,7 @@ if __name__ == "__main__":
 
 #    plt.figure(figsize=(10, 5))
 #    index_Ha = np.searchsorted(pointing.wavelength, 6639.5)
-#    print index
+#    print(index
 #    cube.plot_wavelength(index)
 #    plt.gca().invert_xaxis()
 #    plt.colorbar()
@@ -1327,10 +1330,10 @@ if __name__ == "__main__":
 
 
 #    for i in range(pointing1.n_spectra):
-#        print i+1, pointing1.offset_RA_arcsec[i], pointing1.offset_DEC_arcsec[i]
-#        
+#        print(i+1, pointing1.offset_RA_arcsec[i], pointing1.offset_DEC_arcsec[i]
+#
 #    plt.plot(pointing1.offset_RA_arcsec, pointing1.offset_DEC_arcsec, '+')
-#    
+#
 #    plt.figure(figsize=(20,5))
 #    pointing1.plot_spectra([156])
 #    plt.xlim([6500,6800])
@@ -1345,7 +1348,7 @@ if __name__ == "__main__":
 #
 #    plt.figure(figsize=(10, 5))
 #    index_Ha = np.searchsorted(pointing1.wavelength, 6639.5)
-#    print index
+#    print(index
 #    cube.plot_wavelength(index)
 #    plt.gca().invert_xaxis()
 #    plt.colorbar()
@@ -1401,14 +1404,14 @@ if __name__ == "__main__":
 #    wl = np.linspace(0, 2*np.pi, 20)
 #    spec = np.sin(wl)**2
 #    spec = np.outer([1, 2, -1], spec)
-#    
+#
 #    mock1 = RSS("mock1", wl, spec, .05*spec)
 #    mock1.offset_RA_arcsec = np.array([-25., 0., -25.])
 #    mock1.offset_DEC_arcsec = np.array([5., 0., 10.])
 #    mock1.RA_centre_deg = 12./3600
 #    mock1.DEC_centre_deg = 2./3600
 #    cube1 = Interpolated_cube(mock1, .2, 5)
-#    
+#
 #    mock2 = RSS("mock1", wl, spec, .05*spec)
 #    mock2.offset_RA_arcsec = mock1.offset_RA_arcsec
 #    mock2.offset_DEC_arcsec = mock1.offset_DEC_arcsec
@@ -1423,7 +1426,7 @@ if __name__ == "__main__":
 #
 #    mock1.RA_centre_deg += dx/3600.
 #    mock1.DEC_centre_deg += dy/3600.
-#    
+#
 #    cube1 = Interpolated_cube(mock1,
 #                              cube2.pixel_size_arcsec, cube2.kernel_size_arcsec,
 #                              [cube2.RA_centre_deg, cube2.DEC_centre_deg],
@@ -1476,7 +1479,7 @@ if __name__ == "__main__":
 #    plt.title(cube.RSS.description)
 #    plt.show()
 #    plt.close()
-#    print "  Peak coordinates, in pixel: ({:.2f}+-{:.2f}, {:.2f}+-{:.2f})"\
+#    print("  Peak coordinates, in pixel: ({:.2f}+-{:.2f}, {:.2f}+-{:.2f})"\
 #          .format(np.nanmedian(x_peak), np.std(x_peak),
 #                  np.nanmedian(y_peak), np.std(y_peak))
 
@@ -1510,8 +1513,8 @@ if __name__ == "__main__":
 #    x01, y01 = offset_between_cubes(pointings_cubes[0], pointings_cubes[1])
 #    x12, y12 = offset_between_cubes(pointings_cubes[1], pointings_cubes[2])
 #    x20, y20 = offset_between_cubes(pointings_cubes[2], pointings_cubes[0])
-#    print x01, x12, x20, x01+x12+x20
-#    print y01, y12, y20, y01+y12+y20
+#    print(x01, x12, x20, x01+x12+x20
+#    print(y01, y12, y20, y01+y12+y20
 #
 #    pointings_RSS[0].RA_centre_deg += (x01-x20)/3/3600.
 #    pointings_RSS[0].DEC_centre_deg += (y01-y20)/3/3600.
@@ -1573,7 +1576,7 @@ if __name__ == "__main__":
 #    norm0 = np.nansum(pointings_cubes[0].data)
 #    norm1 = np.nansum(pointings_cubes[1].data)
 #    norm2 = np.nansum(pointings_cubes[2].data)
-#    print norm0, norm1, norm2
+#    print(norm0, norm1, norm2
 #    norm = np.mean([norm0, norm1, norm2])
 #    pointings_cubes[0].data *= norm/norm0
 #    pointings_cubes[1].data *= norm/norm1
@@ -1581,7 +1584,7 @@ if __name__ == "__main__":
 #    compare_cubes(pointings_cubes[0], pointings_cubes[1], 6640)
 #    compare_cubes(pointings_cubes[1], pointings_cubes[2], 6640)
 #    compare_cubes(pointings_cubes[2], pointings_cubes[0], 6640)
-    
+
 #   --------------------------------------------------------------------
 
 #    combined_data = np.array([cube.data for cube in pointings_cubes])
